@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     title: "Campus+ - Transform Your Campus Experience with AI",
     description: "Connect, learn, and grow with AI-powered campus events, clubs, scholarships, and volunteer opportunities.",
     type: "website",
-    url: "https://campusplus.com",
-    siteName: "Campus+",
+    url: "https://www.theskytechnology.in",
+    siteName: "Sky Tech",
   },
   twitter: {
     card: "summary_large_image",
