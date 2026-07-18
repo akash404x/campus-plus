@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOrganizer() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'organizer';
+    }
+    
+    function isStudent() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+    
+    function isVerifiedUser(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.isVerified == true;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || isOrganizer());
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
+      
+      // Settings can only be updated by the owner
+      match /settings/{setting} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Events collection
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isOrganizer() || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.organizerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.organizerId == request.auth.uid || isAdmin());
+      
+      // Only admins can approve/reject events
+      match /status {
+        allow write: if isAdmin();
+      }
+    }
+    
+    // Clubs collection
+    match /clubs/{clubId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isStudent() || isOrganizer() || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.presidentId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.presidentId == request.auth.uid || isAdmin());
+      
+      // Only admins can verify clubs
+      match /verification {
+        allow write: if isAdmin();
+      }
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOrganizer());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Achievements collection
+    match /achievements/{achievementId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || resource.data.isPublic == true);
+      allow create: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOrganizer());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Certificates collection
+    match /certificates/{certificateId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || resource.data.isPublic == true);
+      allow create: if isAuthenticated() && (isAdmin() || isOrganizer());
+      allow update: if isAuthenticated() && (isAdmin() || isOrganizer());
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // PDF URL can only be updated by admins or organizers
+      match /pdfUrl {
+        allow write: if isAdmin() || isOrganizer();
+      }
+    }
+    
+    // Volunteer collection
+    match /volunteer/{volunteerId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOrganizer());
+      allow create: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOrganizer());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOrganizer());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Verification can only be done by organizers or admins
+      match /verification {
+        allow write: if isAdmin() || isOrganizer();
+      }
+    }
+    
+    // Recommendations collection
+    match /recommendations/{recommendationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Messages collection
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+    
+    // Conversations collection
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      
+      // Only participants can read messages in their conversations
+      match /messages {
+        allow read: if request.auth.uid in resource.data.participants;
+      }
+    }
+    
+    // Competition collection
+    match /competitions/{competitionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isOrganizer() || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.organizerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.organizerId == request.auth.uid || isAdmin());
+    }
+    
+    // Scholarship collection
+    match /scholarships/{scholarshipId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isOrganizer() || isAdmin());
+      allow update: if isAuthenticated() && (isAdmin() || isOrganizer());
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+  }
+}
