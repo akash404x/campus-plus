@@ -46,6 +46,56 @@ function DashboardContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState("all")
 
+  const getDisplayName = () => {
+    const normalizeName = (value?: string | null) => {
+      if (!value) return ""
+
+      const trimmed = value.trim()
+      if (!trimmed) return ""
+
+      const hasSpace = /\s/.test(trimmed)
+      const looksLikeUsername = /^[a-z0-9._-]+$/i.test(trimmed) && !hasSpace
+
+      if (looksLikeUsername) return ""
+      return trimmed
+    }
+
+    const firebaseName = normalizeName(user?.displayName)
+    if (firebaseName) return firebaseName
+
+    const profile = userProfile as Record<string, unknown> | null
+    const firestoreNameCandidates = [
+      normalizeName(profile?.displayName as string | undefined),
+      normalizeName(profile?.fullName as string | undefined),
+      normalizeName(profile?.name as string | undefined),
+    ]
+
+    const readableFirestoreName = firestoreNameCandidates.find(Boolean)
+    if (readableFirestoreName) return readableFirestoreName
+
+    const firstName = normalizeName(profile?.firstName as string | undefined)
+    const lastName = normalizeName(profile?.lastName as string | undefined)
+    if (firstName || lastName) {
+      return [firstName, lastName].filter(Boolean).join(" ")
+    }
+
+    const emailLocalPart = user?.email?.split("@")[0] || ""
+    if (!emailLocalPart) return "User"
+
+    const parts = emailLocalPart
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+
+    if (!parts.length) return "User"
+
+    return parts
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  }
+
+  const displayName = getDisplayName()
+
   useEffect(() => {
     // Simulate loading data
     setTimeout(() => setIsLoading(false), 1500)
@@ -301,7 +351,7 @@ function DashboardContent() {
             className="mb-10"
           >
             <h1 className="text-5xl font-bold mb-3">
-              Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {userProfile?.displayName || user?.email?.split('@')[0] || 'User'}! 👋
+              Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {displayName}! 👋
             </h1>
             <p className="text-xl text-muted-foreground">
               Here's what's happening on campus today
@@ -719,6 +769,24 @@ function DashboardContent() {
               </motion.div>
             </div>
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55 }}
+            className="mt-10 pb-6"
+          >
+            <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(139,92,246,0.35)] p-6 text-center">
+              <div className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500/20 via-fuchsia-500/20 to-cyan-500/20 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.25em] text-transparent bg-clip-text">
+                Campus+
+              </div>
+              <div className="mt-3 space-y-1 text-[11px] sm:text-[12px] text-[#9CA3AF]">
+                <p>© 2026 Campus+</p>
+                <p>Developed by Akash Singh</p>
+                <p>Version 1.0</p>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </AppShell>
   )

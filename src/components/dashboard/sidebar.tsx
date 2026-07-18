@@ -64,6 +64,58 @@ export function Sidebar() {
     await logout()
   }
 
+  const getDisplayName = () => {
+    const normalizeName = (value?: string | null) => {
+      if (!value) return ''
+
+      const trimmed = value.trim()
+      if (!trimmed) return ''
+
+      const hasSpace = /\s/.test(trimmed)
+      const looksLikeUsername = /^[a-z0-9._-]+$/i.test(trimmed) && !hasSpace
+
+      if (looksLikeUsername) return ''
+
+      return trimmed
+    }
+
+    const firebaseName = normalizeName(user?.displayName)
+    if (firebaseName) return firebaseName
+
+    const profile = userProfile as Record<string, unknown> | null
+    const firestoreNameCandidates = [
+      normalizeName(profile?.displayName as string | undefined),
+      normalizeName(profile?.fullName as string | undefined),
+      normalizeName(profile?.name as string | undefined),
+    ]
+
+    const readableFirestoreName = firestoreNameCandidates.find(Boolean)
+    if (readableFirestoreName) return readableFirestoreName
+
+    const firstName = normalizeName(profile?.firstName as string | undefined)
+    const lastName = normalizeName(profile?.lastName as string | undefined)
+    if (firstName || lastName) {
+      return [firstName, lastName].filter(Boolean).join(' ')
+    }
+
+    const emailLocalPart = user?.email?.split('@')[0] || ''
+    if (!emailLocalPart) return 'User'
+
+    const parts = emailLocalPart
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+
+    if (!parts.length) return 'User'
+
+    return parts
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  }
+
+  const displayName = getDisplayName()
+  const displayInitial = displayName.charAt(0) || user?.email?.charAt(0) || 'U'
+
   return (
     <motion.aside
       initial={false}
@@ -157,12 +209,12 @@ export function Sidebar() {
                 <Avatar className="w-10 h-10">
                   <AvatarImage src={user?.photoURL || '/placeholder-avatar.jpg'} />
                   <AvatarFallback className="gradient-bg text-white font-semibold">
-                    {userProfile?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    {displayInitial}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">
-                    {userProfile?.displayName || user?.email?.split('@')[0] || 'User'}
+                    {displayName}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {user?.email}
@@ -194,7 +246,7 @@ export function Sidebar() {
               <Avatar className="w-10 h-10">
                 <AvatarImage src={user?.photoURL || '/placeholder-avatar.jpg'} />
                 <AvatarFallback className="gradient-bg text-white font-semibold">
-                  {userProfile?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  {displayInitial}
                 </AvatarFallback>
               </Avatar>
               <div className="flex gap-1">
@@ -214,6 +266,7 @@ export function Sidebar() {
           )}
         </AnimatePresence>
       </div>
+
     </motion.aside>
   )
 }
